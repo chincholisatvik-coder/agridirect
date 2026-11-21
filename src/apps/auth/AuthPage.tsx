@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Sprout,
   Users,
@@ -7,19 +7,12 @@ import {
   AlertCircle,
   Lock,
   User,
-  X,
-  CheckCircle2,
-  ExternalLink,
-  Settings,
   RefreshCw,
-  KeyRound,
-  ShieldCheck,
 } from 'lucide-react';
 import { useAgridirect } from '../../context/AgridirectContext';
 import { LanguageCode } from '../../types/agridirect';
 import {
   getStoredGoogleClientId,
-  setStoredGoogleClientId,
   triggerRealGoogleOAuth,
   GoogleUserProfile,
 } from '../../services/googleAuth';
@@ -69,19 +62,9 @@ export const AuthPage: React.FC = () => {
   const [regError, setRegError] = useState('');
 
   // Real Google OAuth State
-  const [googleClientId, setGoogleClientId] = useState<string>('');
-  const [tempClientIdInput, setTempClientIdInput] = useState<string>('');
-  const [showConfigModal, setShowConfigModal] = useState<boolean>(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
   const [googleError, setGoogleError] = useState<string>('');
   const [googleRoleChoice, setGoogleRoleChoice] = useState<'FARMER' | 'BUYER'>('BUYER');
-
-  // Load stored Google Client ID on mount
-  useEffect(() => {
-    const id = getStoredGoogleClientId();
-    setGoogleClientId(id);
-    setTempClientIdInput(id);
-  }, []);
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,11 +115,10 @@ export const AuthPage: React.FC = () => {
   // Launch Real Google OAuth Flow
   const handleContinueWithGoogle = () => {
     setGoogleError('');
-    const activeClientId = googleClientId.trim() || getStoredGoogleClientId();
+    const activeClientId = getStoredGoogleClientId();
 
     if (!activeClientId) {
-      // If no client ID set, open setup dialog
-      setShowConfigModal(true);
+      setGoogleError('Google Sign-In is currently unavailable.');
       return;
     }
 
@@ -155,48 +137,11 @@ export const AuthPage: React.FC = () => {
       },
       (err: any) => {
         setIsGoogleLoading(false);
-        const errorMsg =
-          err?.message || 'Google authentication was cancelled or encountered an origin mismatch.';
-        setGoogleError(errorMsg);
-        // If client ID missing or origin invalid, show configuration
-        if (
-          errorMsg.toLowerCase().includes('client_id') ||
-          errorMsg.toLowerCase().includes('origin') ||
-          errorMsg.toLowerCase().includes('oauth')
-        ) {
-          setShowConfigModal(true);
-        }
+        setGoogleError(
+          err?.message || 'Google authentication could not be completed.'
+        );
       }
     );
-  };
-
-  // Save Google Client ID & trigger sign in immediately
-  const handleSaveClientIdAndLaunch = () => {
-    const id = tempClientIdInput.trim();
-    setStoredGoogleClientId(id);
-    setGoogleClientId(id);
-    setShowConfigModal(false);
-
-    if (id) {
-      setIsGoogleLoading(true);
-      setGoogleError('');
-      triggerRealGoogleOAuth(
-        id,
-        (profile: GoogleUserProfile) => {
-          setIsGoogleLoading(false);
-          loginWithGoogle({
-            name: profile.name,
-            email: profile.email,
-            role: authMode === 'REGISTER' ? registerRole : googleRoleChoice,
-            avatarUrl: profile.picture,
-          });
-        },
-        (err: any) => {
-          setIsGoogleLoading(false);
-          setGoogleError(err?.message || 'Failed to authenticate with Google.');
-        }
-      );
-    }
   };
 
   // 1-Click fallback account selection
@@ -212,7 +157,6 @@ export const AuthPage: React.FC = () => {
       role: authMode === 'REGISTER' ? registerRole : (acc.role || googleRoleChoice),
       avatarUrl: acc.avatar,
     });
-    setShowConfigModal(false);
   };
 
   return (
@@ -325,66 +269,49 @@ export const AuthPage: React.FC = () => {
           {/* REAL GOOGLE OAUTH CONTINUATION BUTTON                                    */}
           {/* ========================================================================= */}
           <div className="space-y-2.5 pt-1">
-            <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                onClick={handleContinueWithGoogle}
-                disabled={isGoogleLoading}
-                className="flex-1 py-3 bg-white hover:bg-stone-100 disabled:opacity-60 text-stone-900 rounded-2xl text-xs font-bold transition shadow-lg flex items-center justify-center space-x-3 border border-stone-200 hover:border-stone-300 transform active:scale-95 group"
-              >
-                {isGoogleLoading ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin text-stone-900" />
-                    <span>Connecting to Google...</span>
-                  </>
-                ) : (
-                  <>
-                    {/* Official Multi-Color Google G SVG Icon */}
-                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                      />
-                    </svg>
-                    <span className="font-extrabold text-stone-900 tracking-tight">
-                      {t('continueWithGoogle') || 'Continue with Google'}
-                    </span>
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowConfigModal(true)}
-                className="p-3 bg-stone-900 hover:bg-stone-800 border border-stone-800 rounded-2xl text-stone-400 hover:text-white transition"
-                title="Google OAuth Client Configuration"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleContinueWithGoogle}
+              disabled={isGoogleLoading}
+              className="w-full py-3 bg-white hover:bg-stone-100 disabled:opacity-60 text-stone-900 rounded-2xl text-xs font-bold transition shadow-lg flex items-center justify-center space-x-3 border border-stone-200 hover:border-stone-300 transform active:scale-95 group"
+            >
+              {isGoogleLoading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin text-stone-900" />
+                  <span>Connecting to Google...</span>
+                </>
+              ) : (
+                <>
+                  {/* Official Multi-Color Google G SVG Icon */}
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
+                  <span className="font-extrabold text-stone-900 tracking-tight">
+                    {t('continueWithGoogle') || 'Continue with Google'}
+                  </span>
+                </>
+              )}
+            </button>
 
             {googleError && (
-              <div className="p-2.5 bg-red-950/60 border border-red-800/60 rounded-xl text-[11px] text-red-200 flex items-center justify-between">
+              <div className="p-2.5 bg-red-950/60 border border-red-800/60 rounded-xl text-[11px] text-red-200 flex items-center space-x-2">
+                <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
                 <span>{googleError}</span>
-                <button
-                  type="button"
-                  onClick={() => setShowConfigModal(true)}
-                  className="ml-2 underline text-red-300 font-bold shrink-0"
-                >
-                  Configure
-                </button>
               </div>
             )}
 
@@ -680,118 +607,6 @@ export const AuthPage: React.FC = () => {
           </div>
         </div>
       </main>
-
-      {/* ========================================================================= */}
-      {/* GOOGLE OAUTH CONFIGURATION & REAL SIGN-IN MODAL                           */}
-      {/* ========================================================================= */}
-      {showConfigModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/80 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="relative w-full max-w-md bg-white text-stone-900 rounded-3xl shadow-2xl border border-stone-200 overflow-hidden p-6 space-y-4">
-            
-            {/* Google Brand Header */}
-            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-              <div className="flex items-center space-x-2.5">
-                <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                <div>
-                  <h3 className="font-extrabold text-sm text-stone-900 leading-tight">
-                    Connect Real Google OAuth
-                  </h3>
-                  <p className="text-[11px] text-stone-500">Google Identity Services (GIS) Web Client</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowConfigModal(false)}
-                className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Client ID Configuration Input */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-stone-700">
-                Google Cloud OAuth 2.0 Web Client ID:
-              </label>
-              <div className="space-y-1.5">
-                <input
-                  type="text"
-                  placeholder="e.g. 1234567890-xyz.apps.googleusercontent.com"
-                  value={tempClientIdInput}
-                  onChange={(e) => setTempClientIdInput(e.target.value)}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-xl text-xs font-mono focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500 text-stone-900"
-                />
-                <p className="text-[10px] text-stone-500 leading-tight">
-                  Authorized JavaScript origins in Google Cloud Console must include:{' '}
-                  <code className="text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded">http://localhost:3000</code> and{' '}
-                  <code className="text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded">http://127.0.0.1:3000</code>.
-                </p>
-              </div>
-
-              <div className="flex space-x-2 pt-1">
-                <button
-                  type="button"
-                  onClick={handleSaveClientIdAndLaunch}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition flex items-center justify-center space-x-1.5"
-                >
-                  <KeyRound className="w-3.5 h-3.5" />
-                  <span>Save & Launch Real Google Popup</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Quick 3-Step Setup Instructions */}
-            <div className="bg-stone-50 rounded-2xl p-3.5 border border-stone-200 text-xs space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-stone-800 text-[11px]">How to get a Client ID:</span>
-                <a
-                  href="https://console.cloud.google.com/apis/credentials"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-emerald-700 hover:text-emerald-800 font-bold text-[11px] flex items-center space-x-0.5 underline"
-                >
-                  <span>Google Cloud Console</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-              <ol className="list-decimal list-inside text-[11px] text-stone-600 space-y-1">
-                <li>Create Project &rarr; <strong>APIs & Services &rarr; Credentials</strong>.</li>
-                <li>Click <strong>Create Credentials &rarr; OAuth Client ID &rarr; Web application</strong>.</li>
-                <li>Add <strong className="text-stone-800">http://127.0.0.1:3000</strong> to <em>Authorized JavaScript origins</em>.</li>
-              </ol>
-            </div>
-
-            {/* Quick 1-Click Fallback Accounts */}
-            <div className="pt-2 border-t border-stone-100 space-y-1.5">
-              <span className="text-[11px] text-stone-500 font-semibold block">
-                Or test immediately with 1-click verified accounts:
-              </span>
-              <div className="grid grid-cols-2 gap-2">
-                {PRELOADED_GOOGLE_ACCOUNTS.slice(0, 2).map((acc, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => handlePreloadedSelect(acc)}
-                    className="p-2 rounded-xl bg-stone-50 hover:bg-emerald-50 border border-stone-200 hover:border-emerald-300 text-left transition flex items-center space-x-2"
-                  >
-                    <img src={acc.avatar} alt={acc.name} className="w-7 h-7 rounded-full object-cover" />
-                    <div className="truncate text-xs">
-                      <strong className="block text-stone-900 truncate">{acc.name}</strong>
-                      <span className="text-[10px] text-stone-500 block">{acc.role}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
 
       {/* Footer */}
       <footer className="py-4 text-center text-stone-400 text-[11px] border-t border-stone-800/80 relative z-10 backdrop-blur-sm flex flex-col sm:flex-row items-center justify-between max-w-7xl w-full mx-auto px-4 gap-2">
