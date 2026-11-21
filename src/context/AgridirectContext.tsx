@@ -26,7 +26,19 @@ import {
   syncReportToDb,
   isSupabaseConfigured,
 } from '../services/supabase';
-import { sanitizeInput, sanitizeUrl, sanitizeNumber } from '../utils/security';
+import {
+  sanitizeInput,
+  sanitizeUrl,
+  sanitizeNumber,
+  inspectAndSanitizeText,
+  inspectAndSanitizeNumber,
+  inspectAndSanitizeUrl,
+  isActionLockedOut,
+  recordFailedAuthAttempt,
+  clearFailedAuthAttempts,
+  touchSessionActivity,
+  checkSessionExpired,
+} from '../utils/security';
 
 interface NormalOrderInput {
   productId: string;
@@ -235,15 +247,36 @@ export const AgridirectProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const trimmedId = identifier.trim().toLowerCase();
       const cleanPhone = identifier.replace(/\D/g, '');
 
+      // Check brute force lockout
+      const lockStatus = isActionLockedOut(trimmedId);
+      if (lockStatus.locked) {
+        return {
+          success: false,
+          message: `Security Lockout Active: Too many failed attempts. Try again in ${lockStatus.remainingSeconds} seconds.`,
+        };
+      }
+
       // 1. Admin login credentials: "admin" and "123"
       if (trimmedId === 'admin') {
         if (password === '123') {
+          clearFailedAuthAttempts(trimmedId);
+          touchSessionActivity();
           const adminUser = users.find((u) => u.role === 'ADMIN') || SEED_USERS[6];
           setCurrentUserState(adminUser);
           setActiveTab('admin');
           return { success: true };
         } else {
-          return { success: false, message: 'Invalid admin credentials' };
+          const failStatus = recordFailedAuthAttempt(trimmedId, 'ADMIN_LOGIN_PORTAL');
+          if (failStatus.locked) {
+            return {
+              success: false,
+              message: 'Security Alert: Admin access locked for 60 seconds due to repeated failed attempts.',
+            };
+          }
+          return {
+            success: false,
+            message: `Invalid admin credentials (${5 - failStatus.attempts} attempts remaining before security lockout)`,
+          };
         }
       }
 
@@ -259,15 +292,37 @@ export const AgridirectProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       });
 
       if (!matched) {
-        return { success: false, message: t('loginFailed') };
+        const failStatus = recordFailedAuthAttempt(trimmedId, 'USER_LOGIN_FORM');
+        if (failStatus.locked) {
+          return {
+            success: false,
+            message: 'Security Alert: Identity locked for 60 seconds due to repeated failed attempts.',
+          };
+        }
+        return {
+          success: false,
+          message: `${t('loginFailed')} (${5 - failStatus.attempts} attempts remaining before security lockout)`,
+        };
       }
 
       // Check password (default is '123' if unset)
       const expectedPassword = matched.password || '123';
       if (password && password !== expectedPassword) {
-        return { success: false, message: t('loginFailed') };
+        const failStatus = recordFailedAuthAttempt(trimmedId, 'USER_LOGIN_FORM');
+        if (failStatus.locked) {
+          return {
+            success: false,
+            message: 'Security Alert: Identity locked for 60 seconds due to repeated failed attempts.',
+          };
+        }
+        return {
+          success: false,
+          message: `${t('loginFailed')} (${5 - failStatus.attempts} attempts remaining before security lockout)`,
+        };
       }
 
+      clearFailedAuthAttempts(trimmedId);
+      touchSessionActivity();
       setCurrentUserState(matched);
       if (matched.role === 'FARMER') {
         setActiveTab('seller');
@@ -416,9 +471,9 @@ export const AgridirectProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const product = products.find((p) => p.id === input.productId);
       if (!product) throw new Error('Product not found');
 
-      const safeQty = sanitizeNumber(input.quantityKg, 1, product.availableStockKg, 1);
-      const safeDeliveryFee = sanitizeNumber(input.deliveryFee, 0, 10000, 0);
-      const safeDistance = sanitizeNumber(input.distanceKm, 0, 1000, 0);
+      const safeQty = inspectAndSanitizeNumber(input.quantityKg, 1, product.availableStockKg, 1, 'ORDER_QUANTITY_KG').value;
+      const safeDeliveryFee = inspectAndSanitizeNumber(input.deliveryFee, 0, 10000, 0, 'ORDER_DELIVERY_FEE').value;
+      const safeDistance = inspectAndSanitizeNumber(input.distanceKm, 0, 1000, 0, 'ORDER_DISTANCE_KM').value;
       const unitPrice = product.normalPricePerKg;
       const subtotal = safeQty * unitPrice;
       const totalAmount = subtotal + safeDeliveryFee;
@@ -441,7 +496,7 @@ export const AgridirectProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         subtotalAmount: subtotal,
         fulfillmentType: input.fulfillmentType,
         farmerDeliveryApproval: needsFarmerApproval ? 'PENDING' : 'NOT_REQUIRED',
-        buyerAddress: sanitizeInput(input.buyerAddress),
+        buyerAddress: inspectAndSanitizeText(input.buyerAddress, 'BUYER_DELIVERY_ADDRESS').clean,
         distanceKm: safeDistance,
         deliveryFee: safeDeliveryFee,
         totalAmount,
@@ -741,10 +796,10 @@ export const AgridirectProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const newReport: PlatformReport = {
         ...input,
         id,
-        reporterName: sanitizeInput(input.reporterName),
-        title: sanitizeInput(input.title),
-        description: sanitizeInput(input.description),
-        evidencePhotoUrl: input.evidencePhotoUrl ? sanitizeUrl(input.evidencePhotoUrl) : undefined,
+        reporterName: inspectAndSanitizeText(input.reporterName, 'REPORT_REPORTER_NAME').clean,
+        title: inspectAndSanitizeText(input.title, 'REPORT_TITLE').clean,
+        description: inspectAndSanitizeText(input.description, 'REPORT_DESCRIPTION').clean,
+        evidencePhotoUrl: input.evidencePhotoUrl ? inspectAndSanitizeUrl(input.evidencePhotoUrl, 'REPORT_EVIDENCE_PHOTO').clean : undefined,
         status: 'OPEN_PENDING',
         createdAt: new Date().toISOString(),
       };

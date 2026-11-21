@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Database,
   Layers,
+  Radio,
 } from 'lucide-react';
 import { useAgridirect } from '../../context/AgridirectContext';
 import { KycVerification } from './KycVerification';
@@ -20,11 +21,12 @@ import { ShelfLifeAudit } from './ShelfLifeAudit';
 import { AdminUsersView } from './AdminUsersView';
 import { AdminOrdersView } from './AdminOrdersView';
 import { AdminReportsBanner } from './AdminReportsBanner';
+import { SocAuditLedger } from './SocAuditLedger';
 import { isSupabaseConfigured } from '../../services/supabase';
 
 export const AdminApp: React.FC = () => {
   const { orders, products, users, pools, reports, openReportsCount, resetToSeedData, t } = useAgridirect();
-  const [activeTab, setActiveTab] = useState<'orders' | 'reports' | 'users' | 'escrow' | 'kyc' | 'compliance'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'reports' | 'users' | 'escrow' | 'kyc' | 'compliance' | 'security'>('orders');
 
   // Compute Platform Impact KPIs
   const totalVolumeKg = orders.reduce((sum, o) => sum + o.quantityKg, 0);
@@ -244,6 +246,22 @@ export const AdminApp: React.FC = () => {
           <CheckCircle2 className="w-4 h-4" />
           <span>{t('complianceTitle')}</span>
         </button>
+
+        {/* Tab 6: SOC Threat & SIEM Console */}
+        <button
+          onClick={() => setActiveTab('security')}
+          className={`pb-3 text-sm font-black flex items-center space-x-2 transition border-b-2 -mb-0.5 shrink-0 ${
+            activeTab === 'security'
+              ? 'border-red-700 text-red-950 font-black'
+              : 'border-transparent text-stone-600 hover:text-stone-900 font-bold'
+          }`}
+        >
+          <Radio className="w-4 h-4 text-red-600 animate-pulse" />
+          <span>SOC Threat Center</span>
+          <span className="px-1.5 py-0.5 bg-red-950 text-red-400 font-black text-[10px] rounded-full border border-red-800">
+            SIEM
+          </span>
+        </button>
       </div>
 
       {/* Tab Panes */}
@@ -253,6 +271,7 @@ export const AdminApp: React.FC = () => {
       {activeTab === 'escrow' && <EscrowLedger />}
       {activeTab === 'kyc' && <KycVerification />}
       {activeTab === 'compliance' && <ShelfLifeAudit />}
+      {activeTab === 'security' && <SocAuditLedger />}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldAlert,
   Lock,
@@ -8,9 +8,11 @@ import {
   ArrowLeft,
   Globe,
   Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAgridirect } from '../../context/AgridirectContext';
 import { LanguageCode } from '../../types/agridirect';
+import { isActionLockedOut } from '../../utils/security';
 
 export const AdminLoginPage: React.FC = () => {
   const { language, setLanguage, login, t } = useAgridirect();
@@ -18,17 +20,33 @@ export const AdminLoginPage: React.FC = () => {
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('123');
   const [error, setError] = useState('');
+  const [lockoutRemaining, setLockoutRemaining] = useState<number>(0);
+
+  useEffect(() => {
+    const checkLock = () => {
+      const status = isActionLockedOut('admin');
+      if (status.locked) {
+        setLockoutRemaining(status.remainingSeconds);
+      } else {
+        setLockoutRemaining(0);
+      }
+    };
+    checkLock();
+    const interval = setInterval(checkLock, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (username.trim() !== 'admin' || password !== '123') {
-      setError('Invalid admin credentials. Use username: admin and password: 123');
+    const lockStatus = isActionLockedOut('admin');
+    if (lockStatus.locked) {
+      setError(`Admin account is temporarily locked due to repeated failed attempts. Retry in ${lockStatus.remainingSeconds}s.`);
       return;
     }
 
-    const res = login('admin', '123');
+    const res = login(username.trim(), password);
     if (!res.success) {
       setError(res.message || 'Login failed');
     }
@@ -143,10 +161,24 @@ export const AdminLoginPage: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full py-3 bg-red-700 hover:bg-red-600 text-white rounded-xl text-xs font-black tracking-wide uppercase transition shadow-lg shadow-red-950 flex items-center justify-center space-x-2"
+              disabled={lockoutRemaining > 0}
+              className={`w-full py-3 rounded-xl text-xs font-black tracking-wide uppercase transition shadow-lg flex items-center justify-center space-x-2 ${
+                lockoutRemaining > 0
+                  ? 'bg-stone-800 text-stone-500 cursor-not-allowed border border-red-900/40'
+                  : 'bg-red-700 hover:bg-red-600 text-white shadow-red-950'
+              }`}
             >
-              <span>Unlock Admin Panel</span>
-              <ArrowRight className="w-4 h-4" />
+              {lockoutRemaining > 0 ? (
+                <>
+                  <Lock className="w-4 h-4 text-red-400" />
+                  <span>Security Lockout: Wait {lockoutRemaining}s</span>
+                </>
+              ) : (
+                <>
+                  <span>Unlock Admin Panel</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
         </div>
