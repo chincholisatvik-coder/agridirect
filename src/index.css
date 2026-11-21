@@ -1,0 +1,183 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    color: #1e293b;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Form controls text and placeholder legibility */
+  input, select, textarea {
+    color: #0f172a;
+  }
+
+  select option {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  ::placeholder {
+    color: #64748b !important;
+    opacity: 0.9 !important;
+  }
+}
+
+/* Atmospheric Agricultural Field Theme Backgrounds with Flawless Contrast */
+.bg-farm-light {
+  position: relative;
+  background-color: transparent;
+}
+
+.bg-farm-light::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(to bottom, rgba(247, 250, 248, 0.18) 0%, rgba(247, 250, 248, 0.08) 50%, rgba(247, 250, 248, 0.22) 100%),
+    url('/bg-farm.webp');
+  background-position: center bottom;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  opacity: 0.95;
+  filter: saturate(1.15) contrast(1.05);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bg-farm-dark {
+  position: relative;
+  background-color: #071510;
+}
+
+.bg-farm-dark::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(to bottom, rgba(7, 21, 16, 0.72) 0%, rgba(7, 21, 16, 0.60) 100%),
+    url('/bg-farm.webp');
+  background-position: center bottom;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  opacity: 0.85;
+  filter: saturate(1.2) brightness(0.75);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* High-Contrast Glassmorphism: Razor-sharp text legibility with subtle ambient depth */
+.card-glass {
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 4px 20px -2px rgba(17, 60, 46, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.card-glass-subtle {
+  background-color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: 0 2px 10px -1px rgba(17, 60, 46, 0.05);
+}
+
+/* Custom High-Contrast Scrollbars for Modals and Data Tables */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Mobile Ergonomics & Safe Area Utilities */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.safe-top {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Print Optimization for Official E-Receipts */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-size: 12pt;
+  }
+
+  .bg-farm-light::before,
+  .bg-farm-dark::before {
+    display: none !important;
+  }
+
+  .no-print,
+  nav,
+  header,
+  footer,
+  aside,
+  button {
+    display: none !important;
+  }
+
+  #agridirect-e-receipt {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
