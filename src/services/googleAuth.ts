@@ -13,7 +13,7 @@ export interface GoogleUserProfile {
 }
 
 const STORAGE_KEY = 'agridirect_google_client_id';
-const DEFAULT_CLIENT_ID = '554426440628-me18ifkvu0rqv3nd18ias0ukr5mave32.apps.googleusercontent.com';
+const DEFAULT_CLIENT_ID = '164502476414-2nvvdlo0bg8687jjf3rcqcu1lvte2a8j.apps.googleusercontent.com';
 
 /**
  * Get active Google Client ID from localStorage or Vite environment variable
